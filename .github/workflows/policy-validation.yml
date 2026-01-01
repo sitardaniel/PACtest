@@ -1,0 +1,46 @@
+name: Policy Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  opa-test:
+    name: Test OPA Policies
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download OPA
+      run: |
+        curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+        chmod +x opa
+    
+    - name: Run OPA Tests
+      run: ./opa test policies/ -v
+  
+  terraform-validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+    
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive terraform/
+    
+    - name: Terraform Init
+      run: |
+        cd terraform
+        terraform init -backend=false
+    
+    - name: Terraform Validate
+      run: |
+        cd terraform
+        terraform validate

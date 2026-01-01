@@ -1,0 +1,66 @@
+═══════════════════════════════════════════════════════════════
+  DEMO 2 - QUICK REFERENCE CARD
+═══════════════════════════════════════════════════════════════
+
+🎯 RECOMMENDED: AWS CONSOLE METHOD (Most Visual)
+
+STEP 1: SHOW COMPLIANCE
+────────────────────────────────────────────────────────────────
+URL: https://console.aws.amazon.com/config/home?region=us-east-1#/rules
+Action: Point out all rules are "Compliant" (green)
+
+
+STEP 2: CREATE VIOLATION
+────────────────────────────────────────────────────────────────
+URL: https://console.aws.amazon.com/ec2/home?region=us-east-1#SecurityGroups:
+
+1. Click "Create security group"
+2. Name: demo-open-ssh
+3. Description: Demo insecure SSH
+4. Add Inbound Rule:
+   - Type: SSH
+   - Port: 22
+   - Source: 0.0.0.0/0  ⚠️
+5. Click "Create security group"
+
+
+STEP 3: WAIT & SHOW EMAIL
+────────────────────────────────────────────────────────────────
+Wait: 30-90 seconds
+Email: YOUR_EMAIL@example.com
+Expected: "Status: NON_COMPLIANT"
+
+
+STEP 4: SHOW IN CONFIG CONSOLE
+────────────────────────────────────────────────────────────────
+Go back to Config → Rules → restricted-ssh
+Should show: "Noncompliant" with count
+
+
+═══════════════════════════════════════════════════════════════
+
+⚡ ALTERNATIVE: CLI METHOD (Faster)
+
+# One command to trigger:
+SG_ID=$(aws ec2 create-security-group --group-name demo-drift-$(date +%s) --description "Demo" --region us-east-1 --query 'GroupId' --output text) && aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr 0.0.0.0/0 --region us-east-1 && echo "✅ Drift created! Check email in 30-60s. Group ID: $SG_ID"
+
+═══════════════════════════════════════════════════════════════
+
+🧹 CLEANUP
+
+# Delete security group after demo:
+aws ec2 delete-security-group --group-id <GROUP_ID> --region us-east-1
+
+# Or via Console: EC2 → Security Groups → Select → Actions → Delete
+
+═══════════════════════════════════════════════════════════════
+
+💡 PRO TIPS
+• Have email open on second screen/tab
+• Set email to auto-refresh
+• Talk during the wait time (explain Config)
+• Email is dramatic - wait for it to arrive!
+
+═══════════════════════════════════════════════════════════════
+  READY TO GO! 🚀
+═══════════════════════════════════════════════════════════════

@@ -1,0 +1,35 @@
+# OPA binary
+opa
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+
+# Sensitive data
+*.pem
+*.key
+credentials.json
+.env
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/tfplan
+terraform/tfplan.binary
+terraform/tfplan.json
+*.tfvars
+*.tfvars.json
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
