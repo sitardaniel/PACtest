@@ -64,6 +64,7 @@ resource "aws_db_instance" "demo_db" {
   username            = "admin"
   password            = "ChangeMe123!"
   skip_final_snapshot = true
+  
   storage_encrypted   = true # COMPLIANT!
 
   tags = {

@@ -1,0 +1,166 @@
+name: Policy Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  opa-test:
+    name: Test OPA Policies
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Download OPA
+      run: |
+        curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+        chmod +x opa
+
+    - name: Run OPA Tests
+      run: ./opa test policies/ -v
+
+    - name: Validate OPA Policy Syntax
+      run: |
+        echo "Checking policy syntax..."
+        for policy in policies/*.rego; do
+          echo "Validating $policy"
+          ./opa check "$policy"
+        done
+
+  terraform-validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.0
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive terraform/
+      continue-on-error: false
+
+    - name: Terraform Init
+      run: |
+        cd terraform
+        terraform init -backend=false
+
+    - name: Terraform Validate
+      run: |
+        cd terraform
+        terraform validate
+
+  opa-policy-validation:
+    name: OPA Policy Validation Against Terraform
+    runs-on: ubuntu-latest
+    needs: [opa-test, terraform-validate]  # Run after other jobs pass
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Download OPA
+      run: |
+        curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64
+        chmod +x opa
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.0
+        terraform_wrapper: false  # Disable wrapper for clean JSON output
+
+    - name: Terraform Init
+      run: |
+        cd terraform
+        terraform init -backend=false
+
+    - name: Generate Terraform Plan
+      run: |
+        cd terraform
+        terraform plan -out=tfplan.binary
+
+    - name: Convert Plan to JSON
+      run: |
+        cd terraform
+        terraform show -json tfplan.binary > tfplan.json
+
+    - name: Validate Against OPA Policies
+      run: |
+        cd terraform
+        echo "🔍 Evaluating Terraform plan against OPA policies..."
+        echo ""
+
+        # Check S3 encryption policy
+        echo "📦 Checking S3 encryption policy..."
+        S3_VIOLATIONS=$(../opa eval --data ../policies --input tfplan.json "data.terraform.s3.deny" --format raw)
+        if [ "$S3_VIOLATIONS" != "[]" ] && [ -n "$S3_VIOLATIONS" ]; then
+          echo "❌ S3 Encryption Policy Violations:"
+          echo "$S3_VIOLATIONS"
+          EXIT_CODE=1
+        else
+          echo "✅ S3 encryption policy passed"
+        fi
+        echo ""
+
+        # Check security group policy
+        echo "🔒 Checking security group policy..."
+        SG_VIOLATIONS=$(../opa eval --data ../policies --input tfplan.json "data.terraform.security_groups.deny" --format raw)
+        if [ "$SG_VIOLATIONS" != "[]" ] && [ -n "$SG_VIOLATIONS" ]; then
+          echo "❌ Security Group Policy Violations:"
+          echo "$SG_VIOLATIONS"
+          EXIT_CODE=1
+        else
+          echo "✅ Security group policy passed"
+        fi
+        echo ""
+
+        # Check RDS encryption policy
+        echo "🗄️  Checking RDS encryption policy..."
+        RDS_VIOLATIONS=$(../opa eval --data ../policies --input tfplan.json "data.terraform.rds.deny" --format raw)
+        if [ "$RDS_VIOLATIONS" != "[]" ] && [ -n "$RDS_VIOLATIONS" ]; then
+          echo "❌ RDS Encryption Policy Violations:"
+          echo "$RDS_VIOLATIONS"
+          EXIT_CODE=1
+        else
+          echo "✅ RDS encryption policy passed"
+        fi
+        echo ""
+
+        # Check IAM policy
+        echo "👤 Checking IAM least privilege policy..."
+        IAM_VIOLATIONS=$(../opa eval --data ../policies --input tfplan.json "data.terraform.iam.deny" --format raw)
+        if [ "$IAM_VIOLATIONS" != "[]" ] && [ -n "$IAM_VIOLATIONS" ]; then
+          echo "❌ IAM Policy Violations:"
+          echo "$IAM_VIOLATIONS"
+          EXIT_CODE=1
+        else
+          echo "✅ IAM policy passed"
+        fi
+        echo ""
+
+        # Exit with error if any violations found
+        if [ "${EXIT_CODE:-0}" -eq 1 ]; then
+          echo "❌ Policy validation failed! Please fix the violations above."
+          exit 1
+        else
+          echo "✅ All policies passed!"
+          exit 0
+        fi
+
+    - name: Policy Validation Summary
+      if: always()
+      run: |
+        echo "## OPA Policy Validation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Policy validation completed for Terraform plan." >> $GITHUB_STEP_SUMMARY
+        echo "Check the logs above for detailed results." >> $GITHUB_STEP_SUMMARY
