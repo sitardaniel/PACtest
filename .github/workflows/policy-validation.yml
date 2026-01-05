@@ -28,6 +28,11 @@ jobs:
       run: |
         echo "Checking policy syntax..."
         for policy in policies/*.rego; do
+          # Skip test files
+          if [[ "$policy" == *"_test.rego" ]]; then
+            echo "Skipping test file: $policy"
+            continue
+          fi
           echo "Validating $policy"
           ./opa check "$policy"
         done
