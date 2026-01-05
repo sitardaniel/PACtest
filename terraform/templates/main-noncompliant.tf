@@ -65,8 +65,8 @@ resource "aws_iam_policy" "demo_policy" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = "*"     # VIOLATION!
-        Resource = "*"     # VIOLATION!
+        Action   = "*" # VIOLATION!
+        Resource = "*" # VIOLATION!
       }
     ]
   })

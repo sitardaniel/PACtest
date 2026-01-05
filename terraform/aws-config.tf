@@ -220,11 +220,11 @@ resource "aws_cloudwatch_event_target" "send_to_sns" {
 
   input_transformer {
     input_paths = {
-      rule        = "$.detail.configRuleName"
-      compliance  = "$.detail.newEvaluationResult.complianceType"
-      resource    = "$.detail.resourceType"
-      resourceId  = "$.detail.resourceId"
-      time        = "$.time"
+      rule       = "$.detail.configRuleName"
+      compliance = "$.detail.newEvaluationResult.complianceType"
+      resource   = "$.detail.resourceType"
+      resourceId = "$.detail.resourceId"
+      time       = "$.time"
     }
     input_template = <<EOF
 "AWS Config Compliance Change Detected!"
