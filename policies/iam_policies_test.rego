@@ -4,7 +4,7 @@ import future.keywords.if
 
 # Test: IAM policy with least privilege (specific actions) should pass
 test_iam_least_privilege if {
-	count(deny) == 0 with input as {"resource_changes": [{
+	result := deny with input as {"resource_changes": [{
 		"address": "aws_iam_policy.least_privilege",
 		"type": "aws_iam_policy",
 		"change": {"after": {"policy": json.marshal({
@@ -16,11 +16,12 @@ test_iam_least_privilege if {
 			}],
 		})}},
 	}]}
+	count(result) == 0
 }
 
 # Test: IAM policy with wildcard permissions (*:*) should fail
 test_iam_wildcard_permissions if {
-	count(deny) > 0 with input as {"resource_changes": [{
+	result := deny with input as {"resource_changes": [{
 		"address": "aws_iam_policy.admin",
 		"type": "aws_iam_policy",
 		"change": {"after": {"policy": json.marshal({
@@ -32,11 +33,12 @@ test_iam_wildcard_permissions if {
 			}],
 		})}},
 	}]}
+	count(result) > 0
 }
 
 # Test: IAM policy with specific action but wildcard resource should pass
 test_iam_specific_action_wildcard_resource if {
-	count(deny) == 0 with input as {"resource_changes": [{
+	result := deny with input as {"resource_changes": [{
 		"address": "aws_iam_policy.ec2_describe",
 		"type": "aws_iam_policy",
 		"change": {"after": {"policy": json.marshal({
@@ -48,12 +50,13 @@ test_iam_specific_action_wildcard_resource if {
 			}],
 		})}},
 	}]}
+	count(result) == 0
 }
 
 # Test: IAM policy with wildcard action but specific resource should pass
 # (Policy only denies when BOTH Action and Resource are wildcards)
 test_iam_wildcard_action_specific_resource if {
-	count(deny) == 0 with input as {"resource_changes": [{
+	result := deny with input as {"resource_changes": [{
 		"address": "aws_iam_policy.wildcard_action",
 		"type": "aws_iam_policy",
 		"change": {"after": {"policy": json.marshal({
@@ -65,11 +68,12 @@ test_iam_wildcard_action_specific_resource if {
 			}],
 		})}},
 	}]}
+	count(result) == 0
 }
 
 # Test: IAM policy with multiple statements, one with wildcard
 test_iam_mixed_statements if {
-	deny_messages := deny with input as {"resource_changes": [{
+	result := deny with input as {"resource_changes": [{
 		"address": "aws_iam_policy.mixed",
 		"type": "aws_iam_policy",
 		"change": {"after": {"policy": json.marshal({
@@ -88,12 +92,12 @@ test_iam_mixed_statements if {
 			],
 		})}},
 	}]}
-	count(deny_messages) > 0
+	count(result) > 0
 }
 
 # Test: Verify deny message format
 test_iam_deny_message_format if {
-	deny_messages := deny with input as {"resource_changes": [{
+	result := deny with input as {"resource_changes": [{
 		"address": "aws_iam_policy.test",
 		"type": "aws_iam_policy",
 		"change": {"after": {"policy": json.marshal({
@@ -105,7 +109,8 @@ test_iam_deny_message_format if {
 			}],
 		})}},
 	}]}
-	some msg in deny_messages
+	count(result) > 0
+	msg := result[_]
 	contains(msg, "IAM policy")
 	contains(msg, "overly permissive")
 	contains(msg, "aws_iam_policy.test")
